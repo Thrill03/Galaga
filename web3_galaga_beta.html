@@ -1,0 +1,2853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Web3 Galaga - Blockchain Space Combat</title>
+    <meta name="description" content="Web3 Galaga - A blockchain-powered space combat game with NFT ship customization and dynamic enemy AI">
+    <meta name="keywords" content="web3, galaga, space game, blockchain, NFT ships, retro arcade">
+    <meta property="og:title" content="Web3 Galaga - Blockchain Space Combat">
+    <meta property="og:description" content="Experience classic arcade action with modern Web3 features">
+    <meta property="og:type" content="website">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border: 2px solid #00ff00;
+        }
+        
+        #gameCanvas {
+            background: linear-gradient(180deg, #000011 0%, #000033 100%);
+            display: block;
+        }
+        
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #00ff00;
+            font-size: 14px;
+            z-index: 10;
+        }
+        
+        #traitPanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #00ffff;
+            font-size: 12px;
+            text-align: right;
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #ffff00;
+            font-size: 11px;
+            z-index: 10;
+        }
+        
+        .stat-bar {
+            width: 100px;
+            height: 8px;
+            background: #333;
+            margin: 2px 0;
+            border: 1px solid #666;
+        }
+        
+        .stat-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .health-fill { background: #ff4444; }
+        .shield-fill { background: #4444ff; }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff0000;
+            font-size: 24px;
+            text-align: center;
+            z-index: 20;
+            display: none;
+            background: rgba(0,0,0,0.9);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid #ff0000;
+        }
+        
+        #startMenu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ff00;
+            font-size: 20px;
+            text-align: center;
+            z-index: 20;
+            background: rgba(0,0,0,0.9);
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 20px rgba(0,255,0,0.3);
+        }
+        
+        .menu-title {
+            font-size: 36px;
+            color: #00ffff;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ffff;
+            animation: pulse 2s infinite;
+        }
+        
+        .menu-subtitle {
+            font-size: 14px;
+            color: #ffff00;
+            margin-bottom: 30px;
+        }
+        
+        .menu-button {
+            display: block;
+            margin: 10px auto;
+            padding: 10px 20px;
+            background: rgba(0,255,0,0.2);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .menu-button:hover {
+            background: rgba(0,255,0,0.4);
+            box-shadow: 0 0 10px rgba(0,255,0,0.5);
+        }
+        
+        .trait-preview {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #aaaaaa;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .death-stats {
+            margin: 15px 0;
+            font-size: 16px;
+            color: #ffaa00;
+        }
+        
+        .high-score {
+            color: #00ff00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="hud">
+            <div>Score: <span id="score">0</span></div>
+            <div>Wave: <span id="wave">1</span></div>
+            <div>Lives: <span id="lives">1</span></div>
+            <div style="margin-top: 10px;">
+                <div>Health:</div>
+                <div class="stat-bar">
+                    <div class="stat-fill health-fill" id="healthBar" style="width: 100%;"></div>
+                </div>
+                <div>Shield:</div>
+                <div class="stat-bar">
+                    <div class="stat-fill shield-fill" id="shieldBar" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="traitPanel">
+            <div><strong>NFT Ship #1337</strong></div>
+            <div id="hullTrait">Hull: Interceptor</div>
+            <div id="weaponTrait">Weapon: Spread Blaster</div>
+            <div id="shieldTrait">Shield: Phase Shield</div>
+            <div id="engineTrait">Engine: Afterburner</div>
+            <div style="margin-top: 10px; font-size: 10px;">
+                <div id="specialCooldown"></div>
+            </div>
+        </div>
+        
+        <div id="controls">
+            WASD/Arrow Keys: Move | Space: Fire | Shift: Special Ability<br>
+            R: Restart | T: Change Traits | C: Controls (Enemy Types & Projectiles)<br>
+            Each enemy fires unique projectiles - learn the patterns!
+        </div>
+        
+        <div id="startMenu">
+            <div class="menu-title">WEB3 GALAGA</div>
+            <div class="menu-subtitle">Blockchain-Powered Space Combat</div>
+            
+            <button class="menu-button" onclick="startGame()">START GAME</button>
+            <button class="menu-button" onclick="changeTraits()">CHANGE SHIP TRAITS</button>
+            <button class="menu-button" onclick="showControls()">CONTROLS</button>
+            
+            <div class="trait-preview">
+                <div><strong>Current NFT Ship #1337</strong></div>
+                <div id="menuHullTrait">Hull: Interceptor</div>
+                <div id="menuWeaponTrait">Weapon: Spread Blaster</div>
+                <div id="menuShieldTrait">Shield: Phase Shield</div>
+                <div id="menuEngineTrait">Engine: Afterburner</div>
+            </div>
+            
+            <div style="margin-top: 20px; font-size: 12px; color: #666;">
+                High Score: <span id="menuHighScore" class="high-score">0</span>
+            </div>
+        </div>
+        
+        <div id="gameOver">
+            <div style="font-size: 32px; margin-bottom: 20px;">MISSION FAILED</div>
+            
+            <div class="death-stats">
+                <div>Final Score: <span id="finalScore">0</span></div>
+                <div>Waves Survived: <span id="finalWave">1</span></div>
+                <div>Enemies Defeated: <span id="enemiesKilled">0</span></div>
+            </div>
+            
+            <div id="newHighScore" style="color: #00ff00; font-size: 18px; margin: 15px 0; display: none;">
+                🏆 NEW HIGH SCORE! 🏆
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <div style="font-size: 16px; color: #ffaa00;">Ship Performance:</div>
+                <div style="font-size: 14px; margin-top: 5px;">
+                    <div id="shipPerformance"></div>
+                </div>
+            </div>
+            
+            <button class="menu-button" onclick="restartGame()">PLAY AGAIN</button>
+            <button class="menu-button" onclick="returnToMenu()">MAIN MENU</button>
+        </div>
+    </div>
+
+    <script>
+        // Game canvas and context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game state
+        let gameState = 'menu'; // 'menu', 'playing', 'gameOver', 'paused'
+        let score = 0;
+        let wave = 1;
+        let lives = 1;
+        let lastTime = 0;
+        let highScore = 0; // Removed localStorage since it's not supported in artifacts
+        
+        // Input handling
+        const keys = {};
+        const input = {
+            left: false,
+            right: false,
+            up: false,
+            down: false,
+            fire: false,
+            special: false
+        };
+        
+        // Ship Body Styles System (integrated from ship_body_styles.md)
+        const HULL_TRAITS = {
+            INTERCEPTOR: { 
+                name: "Interceptor", 
+                health: 60, // 40% less health than standard (100)
+                speed: 1.5, // +50% movement speed
+                size: 0.8, // Smallest hitbox
+                agility: 1.3, // +30% turn rate
+                specialAbility: "barrelRoll",
+                specialCooldown: 3000,
+                color: "#00ff88", // Bright green
+                secondaryColor: "#00cc66"
+            },
+            JUGGERNAUT: { 
+                name: "Juggernaut", 
+                health: 200, // +100% health
+                speed: 0.7, // 30% slower movement
+                size: 1.3, // Largest ship
+                agility: 0.8, 
+                weaponDamageMultiplier: 1.5, // +50% weapon damage
+                specialAbility: "ramAttack",
+                ramDamage: 50,
+                color: "#ff4400", // Dark red-orange
+                secondaryColor: "#cc3300"
+            },
+            PHANTOM: { 
+                name: "Phantom", 
+                health: 100, // Standard health
+                speed: 1.0, // Standard speed
+                size: 1.0, 
+                agility: 1.0,
+                specialAbility: "cloak",
+                cloakDuration: 3000,
+                cloakCooldown: 8000,
+                color: "#6644ff", // Purple
+                secondaryColor: "#5533dd"
+            },
+            SCOUT: { 
+                name: "Scout", 
+                health: 80, // 20% less health
+                speed: 1.25, // +25% speed
+                size: 0.9, 
+                agility: 1.2,
+                enhancedRadar: true,
+                specialAbility: "boostDash",
+                dashCooldown: 5000,
+                color: "#ffaa00", // Bright orange
+                secondaryColor: "#dd8800"
+            },
+            ENGINEER: { 
+                name: "Engineer", 
+                health: 100, // Standard stats
+                speed: 1.0, 
+                size: 1.0, 
+                agility: 1.0,
+                specialAbility: "deployTurret",
+                maxTurrets: 2,
+                turretCooldown: 8000,
+                color: "#00aaff", // Cyan
+                secondaryColor: "#0088dd"
+            },
+            BERSERKER: { 
+                name: "Berserker", 
+                health: 100, 
+                speed: 1.0, 
+                size: 1.0, 
+                agility: 1.0,
+                killStacks: 0,
+                maxStacks: 10,
+                stackDamageBonus: 0.1, // +10% damage per stack
+                stackSpeedBonus: 0.05, // +5% speed per stack
+                specialAbility: "overdrive",
+                overdriveThreshold: 5,
+                color: "#ff0066", // Hot pink
+                secondaryColor: "#dd0044"
+            },
+            GUARDIAN: { 
+                name: "Guardian", 
+                health: 150, // +50% health
+                speed: 0.8, // 20% slower
+                size: 1.1, 
+                agility: 0.9,
+                shieldShare: true,
+                specialAbility: "protectionField",
+                fieldDuration: 4000,
+                fieldCooldown: 12000,
+                color: "#4488ff", // Blue
+                secondaryColor: "#3366dd"
+            },
+            VAMPIRE: { 
+                name: "Vampire", 
+                health: 60, // Starts with 60% normal health
+                speed: 1.0, 
+                size: 1.0, 
+                agility: 1.0,
+                lifeSteal: 5, // Regains 5 HP per enemy killed
+                specialAbility: "lifeDrain",
+                drainCooldown: 8000,
+                color: "#aa0066", // Dark purple-red
+                secondaryColor: "#880044"
+            },
+            BOMBER: { 
+                name: "Bomber", 
+                health: 120, // Heavy ship
+                speed: 0.9, 
+                size: 1.2, 
+                agility: 0.8,
+                splashImmunity: true,
+                specialAbility: "artilleryMode",
+                artilleryDuration: 4000,
+                artilleryDamageBonus: 1.0, // +100% damage and range
+                artilleryCooldown: 15000,
+                color: "#ff8800", // Orange
+                secondaryColor: "#dd6600"
+            },
+            MIMIC: { 
+                name: "Mimic", 
+                health: 100, 
+                speed: 1.0, 
+                size: 1.0, 
+                agility: 1.0,
+                mimicry: true,
+                confusionField: true,
+                confusionChance: 0.15,
+                color: "#88ff88", // Light green
+                secondaryColor: "#66dd66"
+            }
+        };
+        
+        // Weapon Types System (integrated from weapon_types.md)
+        const WEAPON_TRAITS = {
+            PULSE_CANNON: { 
+                name: "Pulse Cannon", 
+                damage: 25, 
+                fireRate: 250, 
+                projectileSpeed: 8, 
+                spread: 0,
+                overheats: true,
+                overheatTime: 3000,
+                cooldownTime: 2000,
+                description: "Rapid-fire energy bolts with perfect accuracy"
+            },
+            SCATTER_BLASTER: { 
+                name: "Scatter Blaster", 
+                damage: 18, 
+                fireRate: 300, 
+                projectileSpeed: 7, 
+                spread: 5,
+                description: "Fires 5 projectiles in wide cone pattern"
+            },
+            RAIL_GUN: { 
+                name: "Rail Gun", 
+                damage: 60, 
+                fireRate: 800, 
+                projectileSpeed: 15, 
+                piercing: true,
+                chargeTime: 2000,
+                description: "Slow-firing but pierces through all enemies"
+            },
+            PLASMA_MORTAR: { 
+                name: "Plasma Mortar", 
+                damage: 35, 
+                fireRate: 400, 
+                projectileSpeed: 6, 
+                aoeRadius: 30,
+                arcing: true,
+                description: "Arcing shots that explode with splash damage"
+            },
+            HOMING_SWARM: { 
+                name: "Homing Swarm", 
+                damage: 15, 
+                fireRate: 600, 
+                projectileSpeed: 5, 
+                homing: true,
+                spread: 3,
+                description: "Fires 3 weak missiles that track enemies"
+            },
+            BEAM_LASER: { 
+                name: "Beam Laser", 
+                damage: 15, 
+                fireRate: 100, 
+                projectileSpeed: 0, 
+                beamLength: 200,
+                continuous: true,
+                description: "Continuous damage beam that follows cursor"
+            },
+            BURST_RIFLE: { 
+                name: "Burst Rifle", 
+                damage: 22, 
+                fireRate: 450, 
+                projectileSpeed: 10, 
+                burstCount: 3,
+                burstDelay: 80,
+                description: "Fires 3-round bursts with delay between bursts"
+            },
+            CHAIN_LIGHTNING: { 
+                name: "Chain Lightning", 
+                damage: 30, 
+                fireRate: 500, 
+                projectileSpeed: 12, 
+                chainJumps: 4,
+                chainRange: 60,
+                description: "Electrical bolt that jumps between enemies"
+            },
+            GRAVITY_HAMMER: { 
+                name: "Gravity Hammer", 
+                damage: 80, 
+                fireRate: 1200, 
+                projectileSpeed: 8, 
+                pullRange: 40,
+                pullStrength: 200,
+                description: "Pulls enemies close before massive damage"
+            },
+            PHASE_BLASTER: { 
+                name: "Phase Blaster", 
+                damage: 18, 
+                fireRate: 300, 
+                projectileSpeed: 9, 
+                phaseThrough: true,
+                reducedHullDamage: 0.6,
+                description: "Shots ignore shields but deal reduced hull damage"
+            },
+            RICOCHET_CANNON: { 
+                name: "Ricochet Cannon", 
+                damage: 28, 
+                fireRate: 350, 
+                projectileSpeed: 8, 
+                bounces: 3,
+                description: "Bullets bounce off walls up to 3 times"
+            },
+            VOID_TORPEDO: { 
+                name: "Void Torpedo", 
+                damage: 50, 
+                fireRate: 2000, 
+                projectileSpeed: 4, 
+                blackHole: true,
+                pullDuration: 2000,
+                pullRadius: 50,
+                description: "Creates temporary black hole on impact"
+            }
+        };
+        
+        const SHIELD_TRAITS = {
+            ENERGY_BARRIER: { name: "Energy Barrier", capacity: 50, regenRate: 2, regenDelay: 3000, absorption: 1.0 },
+            PHASE_SHIELD: { name: "Phase Shield", capacity: 30, regenRate: 3, regenDelay: 2000, absorption: 1.0, phaseChance: 0.3 },
+            REFLECTOR_ARRAY: { name: "Reflector Array", capacity: 40, regenRate: 2.5, regenDelay: 2500, absorption: 1.0, reflectChance: 0.2 },
+            ADAPTIVE_MATRIX: { name: "Adaptive Matrix", capacity: 60, regenRate: 1.8, regenDelay: 3500, absorption: 1.0, adaptiveReduction: true }
+        };
+        
+        // Engine Types System (integrated from engine_types.md)
+        const ENGINE_TRAITS = {
+            BURST_THRUSTERS: { 
+                name: "Burst Thrusters", 
+                thrustPower: 1.0, 
+                maneuverability: 1.2,
+                burstMovement: true,
+                burstInterval: 400,
+                pauseDuration: 200,
+                description: "Move in quick bursts with brief pauses"
+            },
+            OVERDRIVE_CORE: { 
+                name: "Overdrive Core", 
+                thrustPower: 1.4, 
+                maneuverability: 1.0,
+                overheating: true,
+                heatThreshold: 5000,
+                cooldownPenalty: 0.3,
+                description: "+40% top speed but generates heat"
+            },
+            GRAVITY_WELL: { 
+                name: "Gravity Well Engine", 
+                thrustPower: 0.8, 
+                maneuverability: 1.5,
+                momentum: true,
+                driftFactor: 0.95,
+                description: "Slower acceleration but can drift with momentum"
+            },
+            MICRO_JUMP: { 
+                name: "Micro-Jump Drive", 
+                thrustPower: 1.0, 
+                maneuverability: 1.0,
+                teleportCooldown: 3000,
+                teleportRange: 80,
+                energyCost: true,
+                description: "Normal movement + short-range teleport ability"
+            },
+            ION_PROPULSION: { 
+                name: "Ion Propulsion", 
+                thrustPower: 0.85, 
+                maneuverability: 1.0,
+                stealth: true,
+                detectionRange: 0.5,
+                description: "Silent running - enemies detect you later"
+            },
+            TWIN_FUSION: { 
+                name: "Twin Fusion", 
+                thrustPower: 0.8, 
+                maneuverability: 1.6,
+                strafingBonus: true,
+                fullSpeedStrafe: true,
+                fuelConsumption: 1.5,
+                description: "Can strafe at full speed while moving"
+            },
+            AFTERBURNER: { 
+                name: "Afterburner", 
+                thrustPower: 1.0, 
+                maneuverability: 1.0,
+                boostCooldown: 5000, 
+                boostDuration: 1000,
+                trailDamage: 20,
+                description: "Speed boost that leaves damaging trail"
+            },
+            STABILIZER_ARRAY: { 
+                name: "Stabilizer Array", 
+                thrustPower: 0.9, 
+                maneuverability: 0.9,
+                knockbackImmune: true,
+                description: "Immune to knockback from explosions"
+            },
+            PHASE_ENGINE: { 
+                name: "Phase Engine", 
+                thrustPower: 1.0, 
+                maneuverability: 1.1,
+                phaseThrough: true,
+                phaseCooldown: 8000,
+                energyDrain: true,
+                description: "Can briefly pass through solid obstacles"
+            },
+            SWARM_THRUSTER: { 
+                name: "Swarm Thruster", 
+                thrustPower: 1.0, 
+                maneuverability: 1.0,
+                afterimages: true,
+                confusionChance: 0.2,
+                description: "Movement creates ghost afterimages"
+            }
+        };
+        
+        // Player ship class
+        class PlayerShip {
+            constructor(traits) {
+                this.hull = HULL_TRAITS[traits.hull];
+                this.weapon = WEAPON_TRAITS[traits.weapon];
+                this.shield = SHIELD_TRAITS[traits.shield];
+                this.engine = ENGINE_TRAITS[traits.engine];
+                
+                this.x = canvas.width / 2;
+                this.y = canvas.height - 100;
+                
+                // Base ship dimensions: 130x110 pixels, scaled by hull traits
+                this.baseWidth = 130;
+                this.baseHeight = 110;
+                this.scale = 0.4 * this.hull.size; // Scale down to fit game better
+                this.width = this.baseWidth * this.scale;
+                this.height = this.baseHeight * this.scale;
+                this.size = Math.max(this.width, this.height); // For collision detection
+                
+                this.angle = 0;
+                
+                this.maxHealth = this.hull.health;
+                this.currentHealth = this.maxHealth;
+                this.maxShield = this.shield.capacity;
+                this.currentShield = this.maxShield;
+                this.speed = this.hull.speed * this.engine.thrustPower * 200; // pixels per second
+                
+                this.lastDamageTime = 0;
+                this.weaponCooldown = 0;
+                this.specialCooldowns = {};
+                this.activeEffects = {};
+                
+                // Visual effects
+                this.invulnerable = false;
+                this.invulnerableTime = 0;
+                
+                // New hull-specific properties
+                this.energyLevel = 0; // For Energy Vampire
+                this.berserkerMode = false; // For Berserker Drone
+                this.cloaked = false; // For Stealth Craft
+                this.overcharged = false; // For Energy Vampire
+                this.quantumPhaseActive = false; // For Quantum Fighter
+                
+                // Load ship sprite
+                this.sprite = null;
+                this.spriteLoaded = false;
+                this.loadSprite();
+            }
+            
+            loadSprite() {
+                // For now, we'll use custom drawing instead of trying to load the sprite
+                // In a production environment, you'd load this from your asset server
+                this.spriteLoaded = false; // Force custom drawing
+                console.log('Using custom ship design (sprite loading disabled for artifacts environment)');
+                console.log(`Ship scaled to: ${this.width.toFixed(1)}x${this.height.toFixed(1)} pixels`);
+                console.log(`Hull type: ${this.hull.name}`);
+            }
+            
+            update(deltaTime, gameTime) {
+                // Movement
+                let moveX = 0, moveY = 0;
+                if (input.left) moveX -= 1;
+                if (input.right) moveX += 1;
+                if (input.up) moveY -= 1;
+                if (input.down) moveY += 1;
+                
+                // Apply speed modifiers
+                let currentSpeed = this.speed;
+                
+                // Artillery mode immobilizes the ship
+                if (this.activeEffects.artilleryMode && this.activeEffects.artilleryMode.immobilized) {
+                    moveX = 0;
+                    moveY = 0;
+                    currentSpeed = 0;
+                }
+                
+                // Berserker rage (original)
+                if (this.hull.damageRage) {
+                    const healthRatio = this.currentHealth / this.maxHealth;
+                    currentSpeed *= (1 + (1 - healthRatio) * 0.5);
+                }
+                
+                // Berserker kill stacking speed bonus
+                if (this.hull.killStacks !== undefined && this.hull.killStacks > 0) {
+                    currentSpeed *= (1 + this.hull.killStacks * this.hull.stackSpeedBonus);
+                }
+                
+                // Berserker Drone mode
+                if (this.hull.berserkerThreshold) {
+                    const healthRatio = this.currentHealth / this.maxHealth;
+                    if (healthRatio <= this.hull.berserkerThreshold) {
+                        this.berserkerMode = true;
+                        currentSpeed *= this.hull.berserkerMultiplier;
+                    } else {
+                        this.berserkerMode = false;
+                    }
+                }
+                
+                // Active effects
+                if (this.activeEffects.speedBoost) {
+                    currentSpeed *= this.activeEffects.speedBoost.multiplier;
+                    this.activeEffects.speedBoost.duration -= deltaTime * 1000;
+                    if (this.activeEffects.speedBoost.duration <= 0) {
+                        delete this.activeEffects.speedBoost;
+                    }
+                }
+                
+                // Quantum phase effect
+                if (this.quantumPhaseActive) {
+                    currentSpeed *= 1.5; // Move faster during quantum phase
+                    this.activeEffects.quantumPhase.duration -= deltaTime * 1000;
+                    if (this.activeEffects.quantumPhase.duration <= 0) {
+                        this.quantumPhaseActive = false;
+                        delete this.activeEffects.quantumPhase;
+                    }
+                }
+                
+                // Update position
+                this.x += moveX * currentSpeed * deltaTime;
+                this.y += moveY * currentSpeed * deltaTime;
+                
+                // Keep in bounds (accounting for ship dimensions)
+                this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
+                this.y = Math.max(this.height/2, Math.min(canvas.height - this.height/2, this.y));
+                
+                // Shield regeneration
+                let regenRate = this.shield.regenRate;
+                if (this.hull.shieldRegenRate) {
+                    regenRate *= this.hull.shieldRegenRate;
+                }
+                
+                if (this.currentShield < this.maxShield && gameTime - this.lastDamageTime > this.shield.regenDelay) {
+                    this.currentShield = Math.min(this.maxShield, this.currentShield + regenRate * deltaTime);
+                }
+                
+                // Support Carrier repair field
+                if (this.hull.repairField && this.currentHealth < this.maxHealth) {
+                    this.currentHealth = Math.min(this.maxHealth, this.currentHealth + 5 * deltaTime);
+                }
+                
+                // Energy Vampire overcharge management
+                if (this.hull.energyAbsorption && this.energyLevel >= this.hull.overchargeThreshold) {
+                    this.overcharged = true;
+                    this.energyLevel = Math.max(0, this.energyLevel - 50 * deltaTime); // Slowly decay
+                } else {
+                    this.overcharged = false;
+                }
+                
+                // Update invulnerability
+                if (this.invulnerable) {
+                    this.invulnerableTime -= deltaTime * 1000;
+                    if (this.invulnerableTime <= 0) {
+                        this.invulnerable = false;
+                    }
+                }
+                
+                // Update cloak
+                if (this.cloaked) {
+                    this.activeEffects.cloak.duration -= deltaTime * 1000;
+                    if (this.activeEffects.cloak.duration <= 0) {
+                        this.cloaked = false;
+                        delete this.activeEffects.cloak;
+                    }
+                }
+                
+                // Update other active effects
+                Object.keys(this.activeEffects).forEach(effectName => {
+                    if (this.activeEffects[effectName].duration !== undefined) {
+                        this.activeEffects[effectName].duration -= deltaTime * 1000;
+                        if (this.activeEffects[effectName].duration <= 0) {
+                            delete this.activeEffects[effectName];
+                        }
+                    }
+                });
+            }
+            
+            fire(gameTime) {
+                if (gameTime - this.weaponCooldown < this.getAdjustedFireRate()) return [];
+                
+                this.weaponCooldown = gameTime;
+                
+                let damage = this.weapon.damage;
+                if (this.hull.weaponDamageMultiplier) damage *= this.hull.weaponDamageMultiplier;
+                if (this.shield.overchargeBonus && this.currentShield === this.maxShield) damage *= 1.3;
+                if (this.overcharged) damage *= 1.5; // Energy Vampire overcharge bonus
+                
+                // Berserker kill stacking damage bonus
+                if (this.hull.killStacks !== undefined && this.hull.killStacks > 0) {
+                    damage *= (1 + this.hull.killStacks * this.hull.stackDamageBonus);
+                }
+                
+                // Active effect bonuses
+                if (this.activeEffects.weaponBoost) {
+                    damage *= this.activeEffects.weaponBoost.damageMultiplier;
+                }
+                
+                if (this.activeEffects.artilleryMode) {
+                    damage *= (1 + this.activeEffects.artilleryMode.damageBonus);
+                }
+                
+                // Critical hit chance (Assault Frigate)
+                if (this.hull.criticalHitChance && Math.random() < this.hull.criticalHitChance) {
+                    damage *= 2;
+                }
+                
+                // Player projectile visual style (cyan for player)
+                const playerVisualStyle = {
+                    color: this.overcharged ? '#ff00ff' : '#00ffff', // Purple when overcharged
+                    size: this.overcharged ? 4 : 3,
+                    shape: 'circle',
+                    glowColor: this.overcharged ? '#ff00ff' : '#00ffff',
+                    glowSize: this.overcharged ? 6 : 4,
+                    trailColor: this.overcharged ? '#440044' : '#004444'
+                };
+                
+                const projectiles = [];
+                
+                if (this.weapon.spread > 0) {
+                    for (let i = 0; i < this.weapon.spread; i++) {
+                        const angle = (i - Math.floor(this.weapon.spread / 2)) * 0.3;
+                        const proj = new Projectile(
+                            this.x + Math.sin(angle) * this.width/3,
+                            this.y - this.height/2,
+                            Math.sin(angle) * this.weapon.projectileSpeed * 50,
+                            -this.weapon.projectileSpeed * 50,
+                            damage,
+                            'player',
+                            this.weapon,
+                            playerVisualStyle
+                        );
+                        
+                        // Void Hunter void strike chance
+                        if (this.hull.voidStrike && Math.random() < this.hull.voidZoneChance) {
+                            proj.voidStrike = true;
+                        }
+                        
+                        projectiles.push(proj);
+                    }
+                } else {
+                    const proj = new Projectile(
+                        this.x,
+                        this.y - this.height/2,
+                        0,
+                        -this.weapon.projectileSpeed * 50,
+                        damage,
+                        'player',
+                        this.weapon,
+                        playerVisualStyle
+                    );
+                    
+                    // Void Hunter void strike chance
+                    if (this.hull.voidStrike && Math.random() < this.hull.voidZoneChance) {
+                        proj.voidStrike = true;
+                    }
+                    
+                    projectiles.push(proj);
+                }
+                
+                return projectiles;
+            }
+            
+            getAdjustedFireRate() {
+                let fireRate = this.weapon.fireRate;
+                
+                // Berserker mode increases fire rate
+                if (this.berserkerMode && this.hull.berserkerMultiplier) {
+                    fireRate /= this.hull.berserkerMultiplier;
+                }
+                
+                // Berserker overdrive mode
+                if (this.activeEffects.overdrive) {
+                    fireRate /= this.activeEffects.overdrive.fireRateMultiplier;
+                }
+                
+                // Overcharged state increases fire rate
+                if (this.overcharged) {
+                    fireRate *= 0.7; // 30% faster firing
+                }
+                
+                // Artillery mode prevents firing (immobilized)
+                if (this.activeEffects.artilleryMode && this.activeEffects.artilleryMode.immobilized) {
+                    // Can still fire but movement is locked
+                }
+                
+                return fireRate;
+            }
+            
+            useSpecial(gameTime) {
+                // Hull-based special abilities
+                switch(this.hull.specialAbility) {
+                    case 'barrelRoll':
+                        const lastBarrelRoll = this.specialCooldowns.barrelRoll || 0;
+                        if (gameTime - lastBarrelRoll > this.hull.specialCooldown) {
+                            this.specialCooldowns.barrelRoll = gameTime;
+                            this.invulnerable = true;
+                            this.invulnerableTime = 500; // Brief invulnerability
+                            return true;
+                        }
+                        break;
+                        
+                    case 'ramAttack':
+                        // Ram attack is passive - damage bonus when colliding
+                        return false;
+                        
+                    case 'cloak':
+                        const lastCloak = this.specialCooldowns.cloak || 0;
+                        if (gameTime - lastCloak > this.hull.cloakCooldown) {
+                            this.specialCooldowns.cloak = gameTime;
+                            this.cloaked = true;
+                            this.activeEffects.cloak = {
+                                duration: this.hull.cloakDuration
+                            };
+                            return true;
+                        }
+                        break;
+                        
+                    case 'boostDash':
+                        const lastDash = this.specialCooldowns.boostDash || 0;
+                        if (gameTime - lastDash > this.hull.dashCooldown) {
+                            this.specialCooldowns.boostDash = gameTime;
+                            // Quick movement burst in current direction
+                            this.activeEffects.speedBoost = {
+                                multiplier: 3.0,
+                                duration: 300
+                            };
+                            return true;
+                        }
+                        break;
+                        
+                    case 'overdrive':
+                        if (this.hull.killStacks >= this.hull.overdriveThreshold) {
+                            this.activeEffects.overdrive = {
+                                fireRateMultiplier: 2.0,
+                                duration: 3000
+                            };
+                            return true;
+                        }
+                        break;
+                        
+                    case 'protectionField':
+                        const lastField = this.specialCooldowns.protectionField || 0;
+                        if (gameTime - lastField > this.hull.fieldCooldown) {
+                            this.specialCooldowns.protectionField = gameTime;
+                            this.activeEffects.protectionField = {
+                                duration: this.hull.fieldDuration
+                            };
+                            return true;
+                        }
+                        break;
+                        
+                    case 'lifeDrain':
+                        const lastDrain = this.specialCooldowns.lifeDrain || 0;
+                        if (gameTime - lastDrain > this.hull.drainCooldown && this.currentHealth > 20) {
+                            this.specialCooldowns.lifeDrain = gameTime;
+                            this.currentHealth -= 15; // Sacrifice health
+                            this.activeEffects.weaponBoost = {
+                                damageMultiplier: 2.0,
+                                duration: 4000
+                            };
+                            return true;
+                        }
+                        break;
+                        
+                    case 'artilleryMode':
+                        const lastArtillery = this.specialCooldowns.artilleryMode || 0;
+                        if (gameTime - lastArtillery > this.hull.artilleryCooldown) {
+                            this.specialCooldowns.artilleryMode = gameTime;
+                            this.activeEffects.artilleryMode = {
+                                duration: this.hull.artilleryDuration,
+                                immobilized: true,
+                                damageBonus: this.hull.artilleryDamageBonus
+                            };
+                            return true;
+                        }
+                        break;
+                }
+                
+                // Engine-based special abilities
+                if (this.engine.boostCooldown) {
+                    const lastUsed = this.specialCooldowns.afterburner || 0;
+                    if (gameTime - lastUsed > this.engine.boostCooldown) {
+                        this.specialCooldowns.afterburner = gameTime;
+                        this.activeEffects.speedBoost = {
+                            multiplier: 2.0,
+                            duration: this.engine.boostDuration
+                        };
+                        return true;
+                    }
+                }
+                
+                if (this.engine.teleportCooldown) {
+                    const lastUsed = this.specialCooldowns.teleport || 0;
+                    if (gameTime - lastUsed > this.engine.teleportCooldown) {
+                        this.specialCooldowns.teleport = gameTime;
+                        const angle = Math.random() * Math.PI * 2;
+                        const distance = Math.random() * this.engine.teleportRange;
+                        this.x += Math.cos(angle) * distance;
+                        this.y += Math.sin(angle) * distance;
+                        this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
+                        this.y = Math.max(this.height/2, Math.min(canvas.height - this.height/2, this.y));
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+            
+            takeDamage(damage, gameTime) {
+                if (this.invulnerable || this.cloaked) return false;
+                
+                // Interceptor dodge chance
+                if (this.hull.dodgeChance && Math.random() < this.hull.dodgeChance) {
+                    return false;
+                }
+                
+                // Stealth craft invisibility (original)
+                if (this.hull.invisibilityChance && Math.random() < this.hull.invisibilityChance) {
+                    return false;
+                }
+                
+                // Berserker loses all stacks when hit
+                if (this.hull.killStacks !== undefined) {
+                    this.hull.killStacks = 0;
+                }
+                
+                // Heavy Destroyer damage reduction
+                if (this.hull.damageReduction) {
+                    damage *= (1 - this.hull.damageReduction);
+                }
+                
+                // Quantum Fighter time dilation (reduces incoming damage while phasing)
+                if (this.quantumPhaseActive && this.hull.timeDialation) {
+                    damage *= this.hull.timeDialation;
+                }
+                
+                // Guardian Fortress reflector shield
+                if (this.hull.reflectorShield && Math.random() < this.hull.reflectChance) {
+                    return { reflected: true, damage: damage };
+                }
+                
+                // Phase shield
+                if (this.shield.phaseChance && Math.random() < this.shield.phaseChance) {
+                    return false;
+                }
+                
+                // Apply shield absorption
+                if (this.currentShield > 0) {
+                    const shieldDamage = damage * this.shield.absorption;
+                    const overflow = Math.max(0, shieldDamage - this.currentShield);
+                    this.currentShield = Math.max(0, this.currentShield - shieldDamage);
+                    damage = overflow;
+                }
+                
+                // Apply remaining damage to hull
+                if (damage > 0) {
+                    this.currentHealth = Math.max(0, this.currentHealth - damage);
+                    this.lastDamageTime = gameTime;
+                    this.invulnerable = true;
+                    this.invulnerableTime = 500; // 0.5 second invulnerability
+                }
+                
+                return true;
+            }
+            
+            absorbEnergy(amount) {
+                if (this.hull.energyAbsorption) {
+                    this.energyLevel = Math.min(200, this.energyLevel + amount);
+                    // Convert excess energy to shield/health
+                    if (this.currentShield < this.maxShield) {
+                        this.currentShield = Math.min(this.maxShield, this.currentShield + amount * 0.5);
+                    } else if (this.currentHealth < this.maxHealth) {
+                        this.currentHealth = Math.min(this.maxHealth, this.currentHealth + amount * 0.3);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // Flashing effect when invulnerable
+                if (this.invulnerable && Math.floor(Date.now() / 100) % 2) {
+                    ctx.globalAlpha = 0.5;
+                }
+                
+                // Cloaking effect
+                if (this.cloaked) {
+                    ctx.globalAlpha = 0.3;
+                }
+                
+                // Quantum phase effect
+                if (this.quantumPhaseActive) {
+                    ctx.globalAlpha = 0.7;
+                    // Draw multiple phase images
+                    for (let i = 0; i < 3; i++) {
+                        ctx.save();
+                        ctx.translate(Math.sin(Date.now() * 0.01 + i) * 5, Math.cos(Date.now() * 0.01 + i) * 5);
+                        ctx.globalAlpha = 0.3 - i * 0.1;
+                        this.drawShipBody(ctx);
+                        ctx.restore();
+                    }
+                }
+                
+                // Draw main ship
+                this.drawShipBody(ctx);
+                
+                // Special effects based on hull type
+                this.drawHullSpecificEffects(ctx);
+                
+                ctx.restore();
+            }
+            
+            drawShipBody(ctx) {
+                // Custom ship design inspired by your pixel art, scaled to 130x110 proportions
+                const w = this.width;
+                const h = this.height;
+                
+                // Hull color varies by type - using integrated color system
+                let hullColor = this.hull.color || '#ff6600';
+                let secondaryColor = this.hull.secondaryColor || this.getDarkerColor(hullColor);
+                
+                // Special state color overrides
+                if (this.berserkerMode) hullColor = '#ff2200';
+                if (this.overcharged) hullColor = '#ff00ff';
+                if (this.hull.killStacks && this.hull.killStacks > 0) {
+                    // Berserker stacking effect
+                    const intensity = Math.min(this.hull.killStacks / this.hull.maxStacks, 1);
+                    hullColor = this.blendColors(this.hull.color, '#ff0000', intensity * 0.6);
+                }
+                if (this.cloaked) {
+                    hullColor = this.hull.color + '80'; // Add transparency
+                }
+                
+                // Main hull
+                ctx.fillStyle = hullColor;
+                ctx.beginPath();
+                ctx.moveTo(0, -h/2); // Pointed nose
+                ctx.lineTo(-w/6, -h/3);
+                ctx.lineTo(-w/4, h/8);
+                ctx.lineTo(-w/8, h/2);
+                ctx.lineTo(w/8, h/2);
+                ctx.lineTo(w/4, h/8);
+                ctx.lineTo(w/6, -h/3);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Wings/side extensions
+                ctx.fillStyle = secondaryColor;
+                // Left wing
+                ctx.beginPath();
+                ctx.moveTo(-w/6, -h/4);
+                ctx.lineTo(-w/2, -h/8);
+                ctx.lineTo(-w/3, h/3);
+                ctx.lineTo(-w/6, h/4);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Right wing
+                ctx.beginPath();
+                ctx.moveTo(w/6, -h/4);
+                ctx.lineTo(w/2, -h/8);
+                ctx.lineTo(w/3, h/3);
+                ctx.lineTo(w/6, h/4);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Central details
+                ctx.fillStyle = this.getDarkerColor(secondaryColor, 0.8);
+                ctx.fillRect(-w/12, -h/3, w/6, h/2);
+                
+                // Cockpit/front detail
+                ctx.fillStyle = '#ffaa44';
+                ctx.beginPath();
+                ctx.ellipse(0, -h/4, w/10, h/12, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Engine glows
+                let engineColor = '#4444ff';
+                if (this.berserkerMode) engineColor = '#ff4444';
+                if (this.overcharged) engineColor = '#ff44ff';
+                
+                ctx.fillStyle = engineColor;
+                ctx.beginPath();
+                ctx.ellipse(-w/8, h/2 + 3, 4, 8, 0, 0, Math.PI * 2);
+                ctx.ellipse(w/8, h/2 + 3, 4, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = this.getLighterColor(engineColor);
+                ctx.beginPath();
+                ctx.ellipse(0, h/2 + 1, 3, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            drawHullSpecificEffects(ctx) {
+                // Berserker mode red aura
+                if (this.berserkerMode) {
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#ff0000';
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size/2 + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+                
+                // Energy Vampire overcharge effect
+                if (this.overcharged) {
+                    ctx.strokeStyle = '#ff00ff';
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = '#ff00ff';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size/2 + 12, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+                
+                // Heavy Destroyer armor plating effect
+                if (this.hull.name === 'Heavy Destroyer') {
+                    ctx.strokeStyle = '#666666';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size/2 + 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Guardian Fortress shield effect
+                if (this.hull.reflectorShield && this.currentShield > 0) {
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = 2;
+                    ctx.globalAlpha = this.currentShield / this.maxShield * 0.7;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size/2 + 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+                
+                // Engine trail effect for afterburner (scaled)
+                if (this.activeEffects.speedBoost) {
+                    ctx.fillStyle = '#ff4400';
+                    ctx.globalAlpha = 0.7;
+                    ctx.beginPath();
+                    ctx.ellipse(0, this.height/2 + 12, 12, 25, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Additional trail particles
+                    for (let i = 0; i < 5; i++) {
+                        ctx.fillStyle = `rgba(255, ${100 - i * 20}, 0, ${0.8 - i * 0.15})`;
+                        ctx.beginPath();
+                        ctx.ellipse(
+                            (Math.random() - 0.5) * 15,
+                            this.height/2 + 18 + i * 10,
+                            6 - i,
+                            12 - i * 2,
+                            0, 0, Math.PI * 2
+                        );
+                        ctx.fill();
+                    }
+                }
+            }
+            
+            getDarkerColor(color, factor = 0.8) {
+                // Simple color darkening
+                const hex = color.replace('#', '');
+                const r = Math.floor(parseInt(hex.substr(0, 2), 16) * factor);
+                const g = Math.floor(parseInt(hex.substr(2, 2), 16) * factor);
+                const b = Math.floor(parseInt(hex.substr(4, 2), 16) * factor);
+                return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+            
+            getLighterColor(color, factor = 1.3) {
+                // Simple color lightening
+                const hex = color.replace('#', '');
+                const r = Math.min(255, Math.floor(parseInt(hex.substr(0, 2), 16) * factor));
+                const g = Math.min(255, Math.floor(parseInt(hex.substr(2, 2), 16) * factor));
+                const b = Math.min(255, Math.floor(parseInt(hex.substr(4, 2), 16) * factor));
+                return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+            
+            blendColors(color1, color2, ratio) {
+                // Blend two colors with given ratio (0 = color1, 1 = color2)
+                const hex1 = color1.replace('#', '');
+                const hex2 = color2.replace('#', '');
+                
+                const r1 = parseInt(hex1.substr(0, 2), 16);
+                const g1 = parseInt(hex1.substr(2, 2), 16);
+                const b1 = parseInt(hex1.substr(4, 2), 16);
+                
+                const r2 = parseInt(hex2.substr(0, 2), 16);
+                const g2 = parseInt(hex2.substr(2, 2), 16);
+                const b2 = parseInt(hex2.substr(4, 2), 16);
+                
+                const r = Math.floor(r1 + (r2 - r1) * ratio);
+                const g = Math.floor(g1 + (g2 - g1) * ratio);
+                const b = Math.floor(b1 + (b2 - b1) * ratio);
+                
+                return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+        }
+        
+        // Projectile class
+        class Projectile {
+            constructor(x, y, vx, vy, damage, owner, weaponType, visualStyle = {}) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.damage = damage;
+                this.owner = owner;
+                this.weaponType = weaponType;
+                this.size = visualStyle.size || 3;
+                this.piercing = weaponType.piercing || false;
+                this.homing = weaponType.homing || false;
+                this.aoeRadius = weaponType.aoeRadius || 0;
+                this.alive = true;
+                
+                // Visual properties
+                this.color = visualStyle.color || (owner === 'player' ? '#00ffff' : '#ffff00');
+                this.shape = visualStyle.shape || 'circle'; // 'circle', 'diamond', 'laser', 'pulse'
+                this.glowColor = visualStyle.glowColor || this.color;
+                this.glowSize = visualStyle.glowSize || 0;
+                this.pulseSpeed = visualStyle.pulseSpeed || 0;
+                this.trailColor = visualStyle.trailColor || null;
+            }
+            
+            update(deltaTime, enemies) {
+                // Homing behavior
+                if (this.homing && enemies.length > 0 && this.owner === 'player') {
+                    let closest = null;
+                    let closestDist = Infinity;
+                    
+                    enemies.forEach(enemy => {
+                        const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                        if (dist < closestDist) {
+                            closest = enemy;
+                            closestDist = dist;
+                        }
+                    });
+                    
+                    if (closest) {
+                        const angle = Math.atan2(closest.y - this.y, closest.x - this.x);
+                        const homingStrength = 0.1;
+                        this.vx += Math.cos(angle) * homingStrength * 100;
+                        this.vy += Math.sin(angle) * homingStrength * 100;
+                    }
+                }
+                
+                this.x += this.vx * deltaTime;
+                this.y += this.vy * deltaTime;
+                
+                // Remove if off screen
+                if (this.x < -10 || this.x > canvas.width + 10 || 
+                    this.y < -10 || this.y > canvas.height + 10) {
+                    this.alive = false;
+                }
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                
+                // Apply glow effect if specified
+                if (this.glowSize > 0) {
+                    ctx.shadowColor = this.glowColor;
+                    ctx.shadowBlur = this.glowSize;
+                }
+                
+                // Draw trail if specified
+                if (this.trailColor && (this.homing || this.owner === 'enemy')) {
+                    ctx.fillStyle = this.trailColor;
+                    ctx.globalAlpha = 0.6;
+                    ctx.beginPath();
+                    ctx.arc(this.x - this.vx * 0.02, this.y - this.vy * 0.02, this.size * 0.7, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+                
+                // Apply pulsing effect
+                let currentSize = this.size;
+                if (this.pulseSpeed > 0) {
+                    const pulse = Math.sin(Date.now() * this.pulseSpeed) * 0.3 + 1;
+                    currentSize *= pulse;
+                }
+                
+                ctx.fillStyle = this.color;
+                
+                // Draw different shapes based on projectile type
+                switch (this.shape) {
+                    case 'circle':
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, currentSize, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                        
+                    case 'diamond':
+                        ctx.save();
+                        ctx.translate(this.x, this.y);
+                        ctx.rotate(Math.PI / 4);
+                        ctx.fillRect(-currentSize, -currentSize, currentSize * 2, currentSize * 2);
+                        ctx.restore();
+                        break;
+                        
+                    case 'laser':
+                        ctx.fillRect(this.x - 1, this.y - currentSize * 2, 2, currentSize * 4);
+                        break;
+                        
+                    case 'pulse':
+                        // Draw outer ring
+                        ctx.strokeStyle = this.color;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, currentSize * 1.5, 0, Math.PI * 2);
+                        ctx.stroke();
+                        
+                        // Draw inner core
+                        ctx.fillStyle = this.glowColor;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, currentSize * 0.8, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                        
+                    case 'heavy':
+                        // Large bullet with dark center
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, currentSize, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.fillStyle = '#aa0000';
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, currentSize * 0.6, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                        
+                    default:
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, currentSize, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                }
+                
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+        }
+        
+        // Enemy class
+        class Enemy {
+            constructor(x, y, type = 'basic') {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.alive = true;
+                this.angle = 0;
+                this.moveTimer = 0;
+                this.fireVariance = Math.random() * 0.5 + 0.75; // 75% to 125% of base fire rate
+                this.aggressiveness = Math.random() * 0.5 + 0.5; // 50% to 100% aggression
+                
+                // Set stats based on type (sets this.size)
+                this.setTypeStats();
+                
+                // Ensure formation target stays on screen (after size is set)
+                const formationY = Math.min(y + 100, canvas.height - 150);
+                this.formationTarget = { 
+                    x: Math.max(this.size + 20, Math.min(canvas.width - this.size - 20, x)), 
+                    y: Math.max(100, formationY)
+                };
+                this.inFormation = false;
+                this.lastFire = 0;
+                this.behaviorState = 'entering'; // 'entering', 'formation', 'attacking', 'retreating', 'flanking'
+                this.stateTimer = 0;
+                this.targetX = this.formationTarget.x; // Initial target is formation position
+                this.targetY = this.formationTarget.y;
+            }
+            
+            setTypeStats() {
+                switch (this.type) {
+                    case 'basic':
+                        this.size = 15;
+                        this.health = 30;
+                        this.speed = 60;
+                        this.fireRate = 2500;
+                        this.points = 100;
+                        this.color = '#ff4444';
+                        this.projectileSpeed = 80;
+                        this.projectileDamage = 15;
+                        // Basic enemies are balanced, moderate aggression
+                        this.aggressiveness = Math.max(0.4, this.aggressiveness);
+                        break;
+                        
+                    case 'fast':
+                        this.size = 12;
+                        this.health = 20;
+                        this.speed = 140; // Increased speed
+                        this.fireRate = 1600; // Faster firing
+                        this.points = 150;
+                        this.color = '#ff8844';
+                        this.projectileSpeed = 120;
+                        this.projectileDamage = 12;
+                        // Fast enemies are very aggressive
+                        this.aggressiveness = Math.max(0.7, this.aggressiveness);
+                        this.fireVariance *= 0.8; // More consistent firing
+                        break;
+                        
+                    case 'heavy':
+                        this.size = 20;
+                        this.health = 100; // More health
+                        this.speed = 25; // Slower
+                        this.fireRate = 1800; // Faster firing to compensate
+                        this.points = 300;
+                        this.color = '#ff2222';
+                        this.projectileSpeed = 60;
+                        this.projectileDamage = 30; // More damage
+                        // Heavy enemies are persistent but slow
+                        this.aggressiveness = Math.max(0.6, this.aggressiveness);
+                        break;
+                        
+                    case 'sniper':
+                        this.size = 14;
+                        this.health = 25;
+                        this.speed = 45;
+                        this.fireRate = 2800; // Slower but deadly
+                        this.points = 200;
+                        this.color = '#ff44ff';
+                        this.projectileSpeed = 220; // Faster projectiles
+                        this.projectileDamage = 35; // High damage
+                        this.accurate = true;
+                        // Snipers prefer to keep distance
+                        this.aggressiveness = Math.min(0.5, this.aggressiveness);
+                        this.fireVariance *= 1.2; // Less predictable timing
+                        break;
+                        
+                    case 'bomber':
+                        this.size = 18;
+                        this.health = 60; // More health
+                        this.speed = 35; // Slow and steady
+                        this.fireRate = 3500; // Slow but dangerous
+                        this.points = 400;
+                        this.color = '#ff6600';
+                        this.projectileSpeed = 70;
+                        this.projectileDamage = 22;
+                        this.spreadShot = true;
+                        // Bombers are methodical
+                        this.aggressiveness = Math.max(0.5, this.aggressiveness);
+                        break;
+                        
+                    case 'elite':
+                        this.size = 16;
+                        this.health = 75; // More health
+                        this.speed = 90; // Faster
+                        this.fireRate = 1400; // Much faster firing
+                        this.points = 500;
+                        this.color = '#ffff44';
+                        this.projectileSpeed = 110;
+                        this.projectileDamage = 20;
+                        this.zigzag = true;
+                        // Elite enemies are highly aggressive and unpredictable
+                        this.aggressiveness = Math.max(0.8, this.aggressiveness);
+                        this.fireVariance *= 0.7; // More consistent, dangerous firing
+                        break;
+                }
+                
+                this.maxHealth = this.health;
+            }
+            
+            update(deltaTime, gameTime, player) {
+                this.moveTimer += deltaTime;
+                this.stateTimer += deltaTime;
+                
+                // Handle slow effect from Void Hunter
+                if (this.slowed) {
+                    this.slowDuration -= deltaTime * 1000;
+                    if (this.slowDuration <= 0) {
+                        this.slowed = false;
+                    }
+                }
+                
+                // Apply slow effect
+                let speedMultiplier = this.slowed ? 0.5 : 1.0;
+                
+                // Void Hunter enemy slow field
+                if (player.hull.enemySlowField) {
+                    const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+                    if (distToPlayer < 100) {
+                        speedMultiplier *= (1 - player.hull.enemySlowField);
+                    }
+                }
+                
+                // Update AI behavior state
+                this.updateBehaviorState(player, gameTime);
+                
+                // Execute movement based on current behavior
+                this.executeMovement(deltaTime, player, speedMultiplier);
+                
+                // Keep enemies on screen with small buffer for smooth movement
+                this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+                this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
+                
+                // Remove enemies that somehow get too far off screen (safety net)
+                if (this.x < -20 || this.x > canvas.width + 20 || this.y > canvas.height + 20) {
+                    this.alive = false;
+                }
+            }
+            
+            updateBehaviorState(player, gameTime) {
+                const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+                const healthRatio = this.health / this.maxHealth;
+                
+                switch (this.behaviorState) {
+                    case 'entering':
+                        // Transition to formation after reaching position
+                        if (Math.hypot(this.formationTarget.x - this.x, this.formationTarget.y - this.y) < 30) {
+                            this.behaviorState = 'formation';
+                            this.stateTimer = 0;
+                        }
+                        break;
+                        
+                    case 'formation':
+                        // Stay in formation for 2-4 seconds, then decide next action
+                        if (this.stateTimer > 2 + Math.random() * 2) {
+                            if (distToPlayer < 150 && this.aggressiveness > 0.6) {
+                                this.behaviorState = 'attacking';
+                                this.chooseAttackTarget(player);
+                            } else if (Math.random() < 0.3) {
+                                this.behaviorState = 'flanking';
+                                this.chooseFlankinTarget(player);
+                            } else {
+                                this.behaviorState = 'attacking';
+                                this.chooseAttackTarget(player);
+                            }
+                            this.stateTimer = 0;
+                        }
+                        break;
+                        
+                    case 'attacking':
+                        // Attack for 3-6 seconds or until low health
+                        if (this.stateTimer > 3 + Math.random() * 3 || healthRatio < 0.3) {
+                            if (healthRatio < 0.5 && Math.random() < 0.6) {
+                                this.behaviorState = 'retreating';
+                                this.chooseRetreatTarget();
+                            } else {
+                                this.behaviorState = 'formation';
+                                this.chooseFormationTarget();
+                            }
+                            this.stateTimer = 0;
+                        }
+                        break;
+                        
+                    case 'retreating':
+                        // Retreat for 2-3 seconds then return to formation
+                        if (this.stateTimer > 2 + Math.random()) {
+                            this.behaviorState = 'formation';
+                            this.chooseFormationTarget();
+                            this.stateTimer = 0;
+                        }
+                        break;
+                        
+                    case 'flanking':
+                        // Flank for 4-6 seconds then attack
+                        if (this.stateTimer > 4 + Math.random() * 2) {
+                            this.behaviorState = 'attacking';
+                            this.chooseAttackTarget(player);
+                            this.stateTimer = 0;
+                        }
+                        break;
+                }
+            }
+            
+            chooseAttackTarget(player) {
+                // Set target near player with some prediction
+                const variance = 80;
+                this.targetX = player.x + (Math.random() - 0.5) * variance;
+                this.targetY = player.y + (Math.random() - 0.5) * variance * 0.8;
+                
+                // Strict screen bounds with safety margin
+                this.targetX = Math.max(this.size + 10, Math.min(canvas.width - this.size - 10, this.targetX));
+                this.targetY = Math.max(this.size + 10, Math.min(canvas.height - this.size - 10, this.targetY));
+            }
+            
+            chooseFlankinTarget(player) {
+                // Flank from the sides but stay on screen
+                const side = Math.random() < 0.5 ? -1 : 1;
+                const flankDistance = 120; // Reduced from 150-250
+                
+                // Choose a position to the side of the player
+                this.targetX = player.x + side * flankDistance;
+                this.targetY = player.y - 40 - Math.random() * 60;
+                
+                // Strict screen bounds - if flanking would go off screen, adjust
+                if (this.targetX < this.size + 10) {
+                    this.targetX = this.size + 10;
+                } else if (this.targetX > canvas.width - this.size - 10) {
+                    this.targetX = canvas.width - this.size - 10;
+                }
+                
+                this.targetY = Math.max(this.size + 10, Math.min(canvas.height - this.size - 50, this.targetY));
+            }
+            
+            chooseRetreatTarget() {
+                // Retreat to upper area of screen
+                this.targetX = this.x + (Math.random() - 0.5) * 150; // Reduced variance
+                this.targetY = 60 + Math.random() * 80; // Stay in upper portion
+                
+                // Strict screen bounds
+                this.targetX = Math.max(this.size + 10, Math.min(canvas.width - this.size - 10, this.targetX));
+                this.targetY = Math.max(this.size + 10, Math.min(150, this.targetY)); // Cap at upper area
+            }
+            
+            chooseFormationTarget() {
+                // Return to formation position with limited variance
+                this.targetX = this.formationTarget.x + (Math.random() - 0.5) * 40; // Reduced from 60
+                this.targetY = this.formationTarget.y + (Math.random() - 0.5) * 30; // Reduced from 40
+                
+                // Strict screen bounds
+                this.targetX = Math.max(this.size + 10, Math.min(canvas.width - this.size - 10, this.targetX));
+                this.targetY = Math.max(this.size + 10, Math.min(canvas.height - this.size - 10, this.targetY));
+            }
+            
+            executeMovement(deltaTime, player, speedMultiplier) {
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+                const dist = Math.hypot(dx, dy);
+                
+                if (dist > 10) {
+                    const moveSpeed = this.speed * speedMultiplier * this.getSpeedMultiplierForState();
+                    this.x += (dx / dist) * moveSpeed * deltaTime;
+                    this.y += (dy / dist) * moveSpeed * deltaTime;
+                }
+                
+                // Add type-specific movement patterns
+                this.addTypeSpecificMovement(deltaTime, player, speedMultiplier);
+            }
+            
+            getSpeedMultiplierForState() {
+                switch (this.behaviorState) {
+                    case 'entering': return 1.0;
+                    case 'formation': return 0.3;
+                    case 'attacking': return 1.2 * this.aggressiveness;
+                    case 'retreating': return 1.5;
+                    case 'flanking': return 0.8;
+                    default: return 1.0;
+                }
+            }
+            
+            addTypeSpecificMovement(deltaTime, player, speedMultiplier) {
+                // Check screen bounds before applying type-specific movement
+                const margin = this.size + 5;
+                const nearLeftEdge = this.x < margin + 30;
+                const nearRightEdge = this.x > canvas.width - margin - 30;
+                const nearTopEdge = this.y < margin + 30;
+                const nearBottomEdge = this.y > canvas.height - margin - 30;
+                
+                switch (this.type) {
+                    case 'fast':
+                        // Quick, erratic movements but contained
+                        if (this.behaviorState === 'attacking' && !nearLeftEdge && !nearRightEdge) {
+                            this.x += Math.sin(this.moveTimer * 8) * 20 * deltaTime; // Reduced from 30
+                        }
+                        break;
+                        
+                    case 'heavy':
+                        // Steady, predictable movement but contained
+                        if (!nearLeftEdge && !nearRightEdge) {
+                            this.x += Math.sin(this.moveTimer * 1.5) * 10 * deltaTime; // Reduced from 15
+                        }
+                        break;
+                        
+                    case 'sniper':
+                        // Keeps distance but stays on screen
+                        if (this.behaviorState === 'attacking') {
+                            const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+                            if (distToPlayer < 200) {
+                                // Back away but check bounds
+                                const dx = this.x - player.x;
+                                const dy = this.y - player.y;
+                                const dist = Math.hypot(dx, dy);
+                                if (dist > 0) {
+                                    const moveX = (dx / dist) * this.speed * 0.3 * deltaTime; // Reduced
+                                    const moveY = (dy / dist) * this.speed * 0.3 * deltaTime;
+                                    
+                                    // Only move if it won't take us off screen
+                                    if (!nearLeftEdge && !nearRightEdge) this.x += moveX;
+                                    if (!nearTopEdge && !nearBottomEdge) this.y += moveY;
+                                }
+                            }
+                        }
+                        break;
+                        
+                    case 'bomber':
+                        // Wide arcing movements but contained
+                        if (!nearLeftEdge && !nearRightEdge) {
+                            this.x += Math.cos(this.moveTimer * 1.2) * 25 * deltaTime; // Reduced from 40
+                        }
+                        break;
+                        
+                    case 'elite':
+                        // Sophisticated zigzag patterns but contained
+                        if (this.behaviorState === 'attacking') {
+                            if (!nearLeftEdge && !nearRightEdge) {
+                                this.x += Math.sin(this.moveTimer * 6) * 30 * deltaTime; // Reduced from 50
+                            }
+                            if (!nearTopEdge && !nearBottomEdge) {
+                                this.y += Math.cos(this.moveTimer * 3) * 15 * deltaTime; // Reduced from 20
+                            }
+                        }
+                        break;
+                }
+            }
+            
+
+            
+            fire(gameTime, player) {
+                // Apply fire rate variance and behavior state modifiers
+                let adjustedFireRate = this.fireRate * this.fireVariance;
+                
+                // Different firing rates based on behavior state
+                switch (this.behaviorState) {
+                    case 'attacking':
+                        adjustedFireRate *= 0.7; // 30% faster when attacking
+                        break;
+                    case 'retreating':
+                        adjustedFireRate *= 1.5; // 50% slower when retreating
+                        break;
+                    case 'formation':
+                        adjustedFireRate *= 1.2; // 20% slower in formation
+                        break;
+                    case 'flanking':
+                        adjustedFireRate *= 0.9; // 10% faster when flanking
+                        break;
+                }
+                
+                // More aggressive enemies fire faster
+                adjustedFireRate *= (2 - this.aggressiveness);
+                
+                if (gameTime - this.lastFire > adjustedFireRate) {
+                    this.lastFire = gameTime;
+                    
+                    // Define visual style based on enemy type
+                    let visualStyle = {};
+                    
+                    switch (this.type) {
+                        case 'basic':
+                            visualStyle = {
+                                color: '#ffff00',
+                                size: 3,
+                                shape: 'circle',
+                                glowColor: '#ffff00',
+                                glowSize: 6,
+                                trailColor: '#444400'
+                            };
+                            break;
+                            
+                        case 'fast':
+                            visualStyle = {
+                                color: '#ff8800',
+                                size: 2.5,
+                                shape: 'diamond',
+                                glowColor: '#ff8800',
+                                glowSize: 4,
+                                trailColor: '#442200'
+                            };
+                            break;
+                            
+                        case 'heavy':
+                            visualStyle = {
+                                color: '#cc2244',
+                                size: 5,
+                                shape: 'heavy',
+                                glowColor: '#cc2244',
+                                glowSize: 10,
+                                trailColor: '#440011'
+                            };
+                            break;
+                            
+                        case 'sniper':
+                            visualStyle = {
+                                color: '#00ccff',
+                                size: 4,
+                                shape: 'laser',
+                                glowColor: '#00ccff',
+                                glowSize: 8,
+                                trailColor: '#003344'
+                            };
+                            break;
+                            
+                        case 'bomber':
+                            visualStyle = {
+                                color: '#ff6600',
+                                size: 3.5,
+                                shape: 'circle',
+                                glowColor: '#ff6600',
+                                glowSize: 7,
+                                trailColor: '#442200'
+                            };
+                            break;
+                            
+                        case 'elite':
+                            visualStyle = {
+                                color: '#ffff44',
+                                size: 3,
+                                shape: 'pulse',
+                                glowColor: '#ffdd00',
+                                glowSize: 8,
+                                pulseSpeed: 0.008,
+                                trailColor: '#444400'
+                            };
+                            break;
+                    }
+                    
+                    if (this.spreadShot) {
+                        // Bomber spread shot
+                        const projectiles = [];
+                        for (let i = -1; i <= 1; i++) {
+                            const angle = i * 0.4;
+                            projectiles.push(new Projectile(
+                                this.x + Math.sin(angle) * 15,
+                                this.y + this.size/2,
+                                Math.sin(angle) * this.projectileSpeed,
+                                this.projectileSpeed,
+                                this.projectileDamage,
+                                'enemy',
+                                {},
+                                visualStyle
+                            ));
+                        }
+                        return projectiles;
+                    } else if (this.accurate) {
+                        // Sniper accurate shot
+                        const dx = player.x - this.x;
+                        const dy = player.y - this.y;
+                        const dist = Math.hypot(dx, dy);
+                        
+                        return [new Projectile(
+                            this.x,
+                            this.y + this.size/2,
+                            (dx / dist) * this.projectileSpeed,
+                            (dy / dist) * this.projectileSpeed,
+                            this.projectileDamage,
+                            'enemy',
+                            {},
+                            visualStyle
+                        )];
+                    } else {
+                        // Standard shot
+                        return [new Projectile(
+                            this.x,
+                            this.y + this.size/2,
+                            0,
+                            this.projectileSpeed,
+                            this.projectileDamage,
+                            'enemy',
+                            {},
+                            visualStyle
+                        )];
+                    }
+                }
+                return null;
+            }
+            
+            takeDamage(damage) {
+                this.health -= damage;
+                if (this.health <= 0) {
+                    this.alive = false;
+                    return this.points;
+                }
+                return 0;
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // Health bar
+                if (this.health < this.maxHealth) {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.fillRect(-this.size/2, -this.size/2 - 8, this.size, 3);
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(-this.size/2, -this.size/2 - 8, this.size * (this.health / this.maxHealth), 3);
+                }
+                
+                // Slow effect indicator
+                if (this.slowed) {
+                    ctx.strokeStyle = '#4444ff';
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = '#4444ff';
+                    ctx.shadowBlur = 5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size/2 + 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+                
+                // Enemy ship (different shapes for different types)
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                
+                switch (this.type) {
+                    case 'basic':
+                        // Standard triangle
+                        ctx.moveTo(0, this.size/2);
+                        ctx.lineTo(-this.size/3, -this.size/2);
+                        ctx.lineTo(0, -this.size/3);
+                        ctx.lineTo(this.size/3, -this.size/2);
+                        break;
+                        
+                    case 'fast':
+                        // Sleek diamond
+                        ctx.moveTo(0, this.size/2);
+                        ctx.lineTo(-this.size/4, 0);
+                        ctx.lineTo(0, -this.size/2);
+                        ctx.lineTo(this.size/4, 0);
+                        break;
+                        
+                    case 'heavy':
+                        // Thick rectangle
+                        ctx.rect(-this.size/2, -this.size/2, this.size, this.size);
+                        break;
+                        
+                    case 'sniper':
+                        // Long thin shape
+                        ctx.rect(-this.size/4, -this.size/2, this.size/2, this.size);
+                        break;
+                        
+                    case 'bomber':
+                        // Wide triangle
+                        ctx.moveTo(0, this.size/2);
+                        ctx.lineTo(-this.size/2, -this.size/2);
+                        ctx.lineTo(0, -this.size/4);
+                        ctx.lineTo(this.size/2, -this.size/2);
+                        break;
+                        
+                    case 'elite':
+                        // Star shape
+                        for (let i = 0; i < 5; i++) {
+                            const angle = (i * Math.PI * 2) / 5;
+                            const x = Math.cos(angle) * this.size/3;
+                            const y = Math.sin(angle) * this.size/3;
+                            if (i === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        break;
+                }
+                
+                ctx.closePath();
+                ctx.fill();
+                
+                // Type indicator glow
+                if (this.type !== 'basic') {
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 5;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+                
+                // Behavior state indicator
+                if (this.behaviorState === 'attacking') {
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.lineWidth = 1;
+                    ctx.shadowColor = '#ff0000';
+                    ctx.shadowBlur = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size/2 + 3, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                } else if (this.behaviorState === 'flanking') {
+                    ctx.strokeStyle = '#ffff00';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size/2 + 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        // Game objects
+        let currentTraits = {
+            hull: 'INTERCEPTOR',
+            weapon: 'SCATTER_BLASTER',
+            shield: 'PHASE_SHIELD',
+            engine: 'AFTERBURNER'
+        };
+        
+        let player = new PlayerShip(currentTraits);
+        let projectiles = [];
+        let enemies = [];
+        let lastEnemySpawn = 0;
+        let enemySpawnRate = 2000;
+        let enemiesKilled = 0;
+        let startTime = 0;
+        let controlsShown = false;
+        
+        // All available hull types for cycling
+        const AVAILABLE_HULLS = [
+            'INTERCEPTOR', 'JUGGERNAUT', 'PHANTOM', 'SCOUT', 'ENGINEER', 
+            'BERSERKER', 'GUARDIAN', 'VAMPIRE', 'BOMBER', 'MIMIC'
+        ];
+        
+        // Wave management
+        let currentWave = {
+            number: 1,
+            enemiesRemaining: 0,
+            waveComplete: false,
+            nextWaveDelay: 3000,
+            lastWaveEnd: 0
+        };
+        
+        const WAVE_PATTERNS = {
+            1: { basic: 5, fast: 0, heavy: 0, sniper: 0, bomber: 0, elite: 0 },
+            2: { basic: 6, fast: 2, heavy: 0, sniper: 0, bomber: 0, elite: 0 },
+            3: { basic: 4, fast: 3, heavy: 1, sniper: 0, bomber: 0, elite: 0 },
+            4: { basic: 5, fast: 2, heavy: 1, sniper: 2, bomber: 0, elite: 0 },
+            5: { basic: 3, fast: 4, heavy: 2, sniper: 1, bomber: 1, elite: 0 },
+            6: { basic: 4, fast: 3, heavy: 2, sniper: 2, bomber: 1, elite: 1 },
+            // For waves 7+, use scaling pattern
+            'default': { basic: 3, fast: 4, heavy: 3, sniper: 2, bomber: 2, elite: 2 }
+        };
+        
+        // Game functions
+        function spawnWave(waveNumber) {
+            console.log(`Spawning wave ${waveNumber}`);
+            const pattern = WAVE_PATTERNS[waveNumber] || WAVE_PATTERNS['default'];
+            
+            // Scale difficulty for waves beyond defined patterns
+            if (waveNumber > 6) {
+                const scaleFactor = Math.floor((waveNumber - 6) / 3) + 1;
+                Object.keys(pattern).forEach(key => {
+                    pattern[key] = Math.floor(pattern[key] * (1 + scaleFactor * 0.3));
+                });
+            }
+            
+            // Calculate total enemies for this wave
+            let totalEnemies = 0;
+            Object.values(pattern).forEach(count => totalEnemies += count);
+            
+            currentWave.enemiesRemaining = totalEnemies;
+            currentWave.waveComplete = false;
+            
+            console.log(`Wave ${waveNumber} pattern:`, pattern, `Total enemies: ${totalEnemies}`);
+            
+            // Spawn enemies in formations with delays
+            if (pattern.basic > 0) {
+                spawnFormation('basic', pattern.basic, 0);
+            }
+            if (pattern.fast > 0) {
+                setTimeout(() => spawnFormation('fast', pattern.fast, 500), 1000);
+            }
+            if (pattern.heavy > 0) {
+                setTimeout(() => spawnFormation('heavy', pattern.heavy, 300), 2000);
+            }
+            if (pattern.sniper > 0) {
+                setTimeout(() => spawnFormation('sniper', pattern.sniper, 200), 2500);
+            }
+            if (pattern.bomber > 0) {
+                setTimeout(() => spawnFormation('bomber', pattern.bomber, 400), 3000);
+            }
+            if (pattern.elite > 0) {
+                setTimeout(() => spawnFormation('elite', pattern.elite, 350), 3500);
+            }
+        }
+        
+        function spawnFormation(type, count, yOffset) {
+            if (count === 0) return;
+            
+            console.log(`Spawning ${count} ${type} enemies`);
+            
+            const formations = {
+                'line': (count, type, yOffset) => {
+                    const spacing = canvas.width / (count + 1);
+                    for (let i = 0; i < count; i++) {
+                        const x = spacing * (i + 1);
+                        const y = -50 - yOffset;
+                        enemies.push(new Enemy(x, y, type));
+                    }
+                },
+                'v_formation': (count, type, yOffset) => {
+                    const centerX = canvas.width / 2;
+                    for (let i = 0; i < count; i++) {
+                        const offset = (i - Math.floor(count / 2)) * 60;
+                        const x = centerX + offset;
+                        const y = -50 - yOffset - Math.abs(offset) * 0.3;
+                        enemies.push(new Enemy(x, y, type));
+                    }
+                },
+                'diamond': (count, type, yOffset) => {
+                    const centerX = canvas.width / 2;
+                    const positions = [
+                        {x: 0, y: 0}, {x: -60, y: 40}, {x: 60, y: 40},
+                        {x: -100, y: 80}, {x: 100, y: 80}, {x: 0, y: 120}
+                    ];
+                    for (let i = 0; i < Math.min(count, positions.length); i++) {
+                        const pos = positions[i];
+                        enemies.push(new Enemy(centerX + pos.x, -50 - yOffset + pos.y, type));
+                    }
+                },
+                'arc': (count, type, yOffset) => {
+                    const centerX = canvas.width / 2;
+                    const radius = 150;
+                    for (let i = 0; i < count; i++) {
+                        const angle = (Math.PI / (count + 1)) * (i + 1);
+                        const x = centerX + Math.cos(angle - Math.PI/2) * radius;
+                        const y = -50 - yOffset + Math.sin(angle - Math.PI/2) * radius * 0.5;
+                        enemies.push(new Enemy(x, y, type));
+                    }
+                }
+            };
+            
+            // Choose formation based on enemy type
+            let formationType = 'line';
+            switch (type) {
+                case 'basic': formationType = 'line'; break;
+                case 'fast': formationType = 'v_formation'; break;
+                case 'heavy': formationType = 'line'; break;
+                case 'sniper': formationType = 'arc'; break;
+                case 'bomber': formationType = 'diamond'; break;
+                case 'elite': formationType = 'v_formation'; break;
+            }
+            
+            formations[formationType](count, type, yOffset);
+            console.log(`Total enemies after spawn: ${enemies.length}`);
+        }
+        
+        function updateWaveSystem(gameTime) {
+            // Start first wave immediately
+            if (!currentWave.waveStarted && wave === 1) {
+                currentWave.waveStarted = true;
+                spawnWave(1);
+                return;
+            }
+            
+            // Check if wave is complete
+            if (!currentWave.waveComplete && enemies.length === 0 && currentWave.enemiesRemaining === 0 && currentWave.waveStarted) {
+                // All enemies destroyed
+                currentWave.waveComplete = true;
+                currentWave.lastWaveEnd = gameTime;
+                wave++;
+                console.log(`Wave ${wave-1} complete! Starting wave ${wave} soon...`);
+            }
+            
+            // Start next wave after delay
+            if (currentWave.waveComplete && gameTime - currentWave.lastWaveEnd > currentWave.nextWaveDelay) {
+                currentWave.number = wave;
+                currentWave.waveStarted = true;
+                spawnWave(wave);
+                console.log(`Spawning wave ${wave}`);
+            }
+            
+            // Update enemies remaining counter
+            currentWave.enemiesRemaining = enemies.filter(e => e.alive).length;
+        }
+        
+        function checkCollisions(gameTime) {
+            // Player projectiles vs enemies
+            projectiles.forEach(proj => {
+                if (proj.owner === 'player' && proj.alive) {
+                    enemies.forEach(enemy => {
+                        if (enemy.alive) {
+                            const dist = Math.hypot(enemy.x - proj.x, enemy.y - proj.y);
+                            if (dist < enemy.size/2 + proj.size) {
+                                const points = enemy.takeDamage(proj.damage);
+                                if (points > 0) {
+                                    let finalScore = points;
+                                    if (player.hull.scoreMultiplier) {
+                                        finalScore = Math.floor(points * player.hull.scoreMultiplier);
+                                    }
+                                    score += finalScore;
+                                    enemiesKilled++;
+                                    
+                                    // Berserker kill stacking
+                                    if (player.hull.killStacks !== undefined) {
+                                        player.hull.killStacks = Math.min(player.hull.maxStacks, player.hull.killStacks + 1);
+                                    }
+                                    
+                                    // Vampire life steal
+                                    if (player.hull.lifeSteal) {
+                                        player.currentHealth = Math.min(player.maxHealth, player.currentHealth + player.hull.lifeSteal);
+                                    }
+                                    
+                                    // Energy Vampire energy absorption from kills
+                                    if (player.hull.energyAbsorption) {
+                                        player.absorbEnergy(points * 0.1);
+                                    }
+                                }
+                                
+                                // Void Hunter void strike effect
+                                if (proj.voidStrike) {
+                                    // Create void zone that slows nearby enemies
+                                    enemies.forEach(otherEnemy => {
+                                        if (otherEnemy.alive) {
+                                            const voidDist = Math.hypot(otherEnemy.x - proj.x, otherEnemy.y - proj.y);
+                                            if (voidDist < 50) {
+                                                otherEnemy.slowed = true;
+                                                otherEnemy.slowDuration = 3000; // 3 seconds
+                                            }
+                                        }
+                                    });
+                                }
+                                
+                                if (!proj.piercing) {
+                                    proj.alive = false;
+                                }
+                                
+                                // AOE damage
+                                if (proj.aoeRadius > 0) {
+                                    enemies.forEach(otherEnemy => {
+                                        if (otherEnemy.alive && otherEnemy !== enemy) {
+                                            const aoeDist = Math.hypot(otherEnemy.x - proj.x, otherEnemy.y - proj.y);
+                                            if (aoeDist < proj.aoeRadius) {
+                                                const aoePoints = otherEnemy.takeDamage(proj.damage * 0.5);
+                                                if (aoePoints > 0) {
+                                                    let finalScore = aoePoints;
+                                                    if (player.hull.scoreMultiplier) {
+                                                        finalScore = Math.floor(aoePoints * player.hull.scoreMultiplier);
+                                                    }
+                                                    score += finalScore;
+                                                    enemiesKilled++;
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // Enemy projectiles vs player
+            projectiles.forEach(proj => {
+                if (proj.owner === 'enemy' && proj.alive) {
+                    const dist = Math.hypot(player.x - proj.x, player.y - proj.y);
+                    if (dist < player.size/2 + proj.size) {
+                        const damageResult = player.takeDamage(proj.damage, gameTime);
+                        
+                        if (damageResult === false) {
+                            // Damage was avoided/absorbed
+                            proj.alive = false;
+                        } else if (damageResult && damageResult.reflected) {
+                            // Guardian Fortress reflected the projectile
+                            proj.owner = 'player';
+                            proj.vy = -Math.abs(proj.vy); // Reverse direction
+                            proj.vx = -proj.vx;
+                            proj.color = '#00ffff'; // Change to player color
+                        } else if (damageResult === true) {
+                            // Normal damage taken
+                            proj.alive = false;
+                            
+                            // Energy Vampire can absorb energy from taking damage
+                            if (player.hull.energyAbsorption) {
+                                player.absorbEnergy(proj.damage * 0.2);
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Enemies vs player (collision damage)
+            enemies.forEach(enemy => {
+                if (enemy.alive) {
+                    const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                    if (dist < player.size/2 + enemy.size/2) {
+                        // Heavy Destroyer ram damage
+                        if (player.hull.ramDamage) {
+                            enemy.takeDamage(player.hull.ramDamage);
+                            player.takeDamage(15, gameTime); // Take less damage when ramming
+                        } else {
+                            player.takeDamage(30, gameTime);
+                        }
+                        enemy.alive = false;
+                    }
+                }
+            });
+        }
+        
+        function updateHUD() {
+            if (gameState !== 'playing') return;
+            
+            document.getElementById('score').textContent = score.toLocaleString();
+            document.getElementById('wave').textContent = wave;
+            document.getElementById('lives').textContent = lives;
+            
+            const healthPercent = (player.currentHealth / player.maxHealth) * 100;
+            const shieldPercent = (player.currentShield / player.maxShield) * 100;
+            
+            document.getElementById('healthBar').style.width = healthPercent + '%';
+            document.getElementById('shieldBar').style.width = shieldPercent + '%';
+            
+            // Update trait display
+            document.getElementById('hullTrait').textContent = `Hull: ${player.hull.name}`;
+            document.getElementById('weaponTrait').textContent = `Weapon: ${player.weapon.name}`;
+            document.getElementById('shieldTrait').textContent = `Shield: ${player.shield.name}`;
+            document.getElementById('engineTrait').textContent = `Engine: ${player.engine.name}`;
+            
+            // Special ability status
+            const now = Date.now();
+            let statusText = '';
+            
+            // Original engine abilities
+            if (player.engine.boostCooldown) {
+                const lastUsed = player.specialCooldowns.afterburner || 0;
+                const cooldownRemaining = Math.max(0, player.engine.boostCooldown - (now - lastUsed));
+                if (cooldownRemaining > 0) {
+                    statusText += `Afterburner: ${(cooldownRemaining / 1000).toFixed(1)}s<br>`;
+                } else {
+                    statusText += 'Afterburner: Ready<br>';
+                }
+            }
+            
+            // Hull-specific abilities
+            if (player.hull.cloakDuration) {
+                const lastUsed = player.specialCooldowns.cloak || 0;
+                const cooldownRemaining = Math.max(0, player.hull.cloakCooldown - (now - lastUsed));
+                if (player.cloaked) {
+                    statusText += '🔵 CLOAKED<br>';
+                } else if (cooldownRemaining > 0) {
+                    statusText += `Cloak: ${(cooldownRemaining / 1000).toFixed(1)}s<br>`;
+                } else {
+                    statusText += 'Cloak: Ready<br>';
+                }
+            }
+            
+            if (player.hull.quantumPhase) {
+                const lastUsed = player.specialCooldowns.quantumPhase || 0;
+                const cooldownRemaining = Math.max(0, player.hull.phaseCooldown - (now - lastUsed));
+                if (player.quantumPhaseActive) {
+                    statusText += '⚡ QUANTUM PHASE<br>';
+                } else if (cooldownRemaining > 0) {
+                    statusText += `Q-Phase: ${(cooldownRemaining / 1000).toFixed(1)}s<br>`;
+                } else {
+                    statusText += 'Q-Phase: Ready<br>';
+                }
+            }
+            
+            // Status effects
+            if (player.berserkerMode) {
+                statusText += '🔴 BERSERKER MODE<br>';
+            }
+            
+            if (player.overcharged) {
+                statusText += '🟣 OVERCHARGED<br>';
+                statusText += `Energy: ${Math.floor(player.energyLevel)}<br>`;
+            } else if (player.hull.energyAbsorption) {
+                statusText += `Energy: ${Math.floor(player.energyLevel)}<br>`;
+            }
+            
+            // Wave status
+            if (currentWave.waveComplete && enemies.length === 0) {
+                statusText += '🌊 Next Wave Incoming...<br>';
+            } else if (enemies.length > 0) {
+                statusText += `👾 Enemies: ${enemies.length}<br>`;
+            } else if (!currentWave.waveStarted) {
+                statusText += '⚠️ Preparing Wave...<br>';
+            }
+            
+            document.getElementById('specialCooldown').innerHTML = statusText;
+        }
+        
+        function resetGame() {
+            score = 0;
+            wave = 1;
+            lives = 1;
+            enemiesKilled = 0;
+            player = new PlayerShip(currentTraits);
+            projectiles = [];
+            enemies = [];
+            lastEnemySpawn = 0;
+            enemySpawnRate = 2000;
+            startTime = Date.now();
+            
+            // Reset wave system - start first wave immediately
+            currentWave = {
+                number: 1,
+                enemiesRemaining: 0,
+                waveComplete: false,
+                nextWaveDelay: 1000,
+                lastWaveEnd: 0,
+                waveStarted: false
+            };
+        }
+        
+        function startGame() {
+            gameState = 'playing';
+            resetGame();
+            document.getElementById('startMenu').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+        }
+        
+        function restartGame() {
+            startGame();
+        }
+        
+        function returnToMenu() {
+            gameState = 'menu';
+            document.getElementById('startMenu').style.display = 'block';
+            document.getElementById('gameOver').style.display = 'none';
+            updateMenuTraits();
+        }
+        
+        function changeTraits() {
+            // Cycle through hull types
+            const currentHullIndex = AVAILABLE_HULLS.indexOf(currentTraits.hull);
+            const nextHullIndex = (currentHullIndex + 1) % AVAILABLE_HULLS.length;
+            currentTraits.hull = AVAILABLE_HULLS[nextHullIndex];
+            
+            // Cycle through other traits too
+            const weaponKeys = Object.keys(WEAPON_TRAITS);
+            const shieldKeys = Object.keys(SHIELD_TRAITS);
+            const engineKeys = Object.keys(ENGINE_TRAITS);
+            
+            const weaponIndex = weaponKeys.indexOf(currentTraits.weapon);
+            currentTraits.weapon = weaponKeys[(weaponIndex + 1) % weaponKeys.length];
+            
+            const shieldIndex = shieldKeys.indexOf(currentTraits.shield);
+            currentTraits.shield = shieldKeys[(shieldIndex + 1) % shieldKeys.length];
+            
+            const engineIndex = engineKeys.indexOf(currentTraits.engine);
+            currentTraits.engine = engineKeys[(engineIndex + 1) % engineKeys.length];
+            
+            console.log(`Changed to hull: ${HULL_TRAITS[currentTraits.hull].name}`);
+            
+            updateMenuTraits();
+            if (gameState === 'playing') {
+                player = new PlayerShip(currentTraits);
+            }
+        }
+        
+        function updateMenuTraits() {
+            document.getElementById('menuHullTrait').textContent = `Hull: ${HULL_TRAITS[currentTraits.hull].name}`;
+            document.getElementById('menuWeaponTrait').textContent = `Weapon: ${WEAPON_TRAITS[currentTraits.weapon].name}`;
+            document.getElementById('menuShieldTrait').textContent = `Shield: ${SHIELD_TRAITS[currentTraits.shield].name}`;
+            document.getElementById('menuEngineTrait').textContent = `Engine: ${ENGINE_TRAITS[currentTraits.engine].name}`;
+            document.getElementById('menuHighScore').textContent = parseInt(highScore).toLocaleString();
+        }
+        
+        function showControls() {
+            if (!controlsShown) {
+                alert(`CONTROLS:
+                
+WASD or Arrow Keys - Move Ship
+SPACE - Fire Weapons
+SHIFT - Use Special Ability
+R - Restart Game (during play)
+T - Change Traits (testing mode)
+
+SHIP HULLS & ABILITIES:
+🚀 Interceptor - 15% dodge chance, enhanced evasion
+⚔️ Assault Frigate - 20% critical hits, weapon damage boost
+👻 Stealth Craft - Active cloaking, invisibility chance
+🛡️ Heavy Destroyer - 30% damage reduction, ram enemies
+⚡ Energy Vampire - Absorbs enemy energy, overcharge mode
+💥 Berserker Drone - Berserker rage when damaged
+🏰 Guardian Fortress - Reflecting shields, enhanced regen
+🌌 Quantum Fighter - Quantum phase ability, time dilation
+🔧 Support Carrier - Auto-repair, score multiplier
+🌀 Void Hunter - Void strikes slow enemies, area control
+
+ENEMY TYPES & PROJECTILES:
+🔴 Basic (Red Triangle) - Yellow circular shots
+🟠 Fast (Orange Diamond) - Orange diamond projectiles  
+⬛ Heavy (Red Square) - Large dark red bullets
+🟣 Sniper (Purple Line) - Blue laser beams, accurate
+🟤 Bomber (Brown Wide) - Orange spread shots (3 at once)
+⭐ Elite (Yellow Star) - Pulsing yellow energy orbs
+
+Each ship hull has unique gameplay mechanics!
+Press T to cycle through all 10 different ship types.`);
+                controlsShown = true;
+            }
+        }
+        
+        function showGameOver() {
+            gameState = 'gameOver';
+            
+            // Update high score
+            if (score > highScore) {
+                highScore = score;
+                document.getElementById('newHighScore').style.display = 'block';
+            } else {
+                document.getElementById('newHighScore').style.display = 'none';
+            }
+            
+            // Update death screen stats
+            document.getElementById('finalScore').textContent = score.toLocaleString();
+            document.getElementById('finalWave').textContent = wave;
+            document.getElementById('enemiesKilled').textContent = enemiesKilled;
+            
+            // Ship performance analysis
+            const survivalTime = (Date.now() - startTime) / 1000;
+            const avgEnemiesPerWave = Math.floor(enemiesKilled / wave);
+            let performance = `${player.hull.name} survived ${survivalTime.toFixed(1)}s`;
+            
+            if (player.hull.damageRage) {
+                performance += `\nBerserker rage activated ${Math.floor(survivalTime / 10)} times`;
+            }
+            if (player.shield.phaseChance) {
+                performance += `\nPhase shield estimated ${Math.floor(survivalTime * 2)} damage negations`;
+            }
+            if (player.hull.scoreMultiplier) {
+                performance += `\nScore multiplier earned ${Math.floor(score * 0.3)} bonus points`;
+            }
+            
+            document.getElementById('shipPerformance').innerHTML = performance.replace(/\n/g, '<br>');
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            
+            if (e.code === 'KeyR' && gameState === 'playing') {
+                restartGame();
+            }
+            
+            if (e.code === 'KeyT') {
+                changeTraits();
+            }
+            
+            if (e.code === 'KeyC') {
+                showControls();
+            }
+            
+            if (e.code === 'Enter' && gameState === 'menu') {
+                startGame();
+            }
+            
+            if (e.code === 'Escape') {
+                if (gameState === 'playing') {
+                    returnToMenu();
+                }
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+        
+        // Game loop
+        function gameLoop(currentTime) {
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+            
+            if (gameState === 'playing') {
+                // Update input
+                input.left = keys['KeyA'] || keys['ArrowLeft'];
+                input.right = keys['KeyD'] || keys['ArrowRight'];
+                input.up = keys['KeyW'] || keys['ArrowUp'];
+                input.down = keys['KeyS'] || keys['ArrowDown'];
+                input.fire = keys['Space'];
+                input.special = keys['ShiftLeft'] || keys['ShiftRight'];
+                
+                // Update player
+                player.update(deltaTime, currentTime);
+                
+                // Player firing
+                if (input.fire) {
+                    const newProjectiles = player.fire(currentTime);
+                    projectiles.push(...newProjectiles);
+                }
+                
+                // Player special ability
+                if (input.special) {
+                    player.useSpecial(currentTime);
+                }
+                
+                // Update wave system
+                updateWaveSystem(currentTime);
+                
+                // Update projectiles
+                projectiles.forEach(proj => proj.update(deltaTime, enemies));
+                projectiles = projectiles.filter(proj => proj.alive);
+                
+                // Update enemies
+                enemies.forEach(enemy => {
+                    enemy.update(deltaTime, currentTime, player);
+                    
+                    // Enemy firing
+                    const enemyProjectiles = enemy.fire(currentTime, player);
+                    if (enemyProjectiles) {
+                        if (Array.isArray(enemyProjectiles)) {
+                            projectiles.push(...enemyProjectiles);
+                        } else {
+                            projectiles.push(enemyProjectiles);
+                        }
+                    }
+                });
+                enemies = enemies.filter(enemy => enemy.alive);
+                
+                // Check collisions
+                checkCollisions(currentTime);
+                
+                // Check if player died
+                if (player.currentHealth <= 0) {
+                    showGameOver();
+                }
+            }
+            
+            // Render everything
+            render();
+            
+            // Update HUD
+            updateHUD();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = 'rgba(0, 0, 17, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw starfield background
+            drawStarfield();
+            
+            // Draw game objects
+            if (gameState === 'playing') {
+                player.draw(ctx);
+                projectiles.forEach(proj => proj.draw(ctx));
+                enemies.forEach(enemy => enemy.draw(ctx));
+                drawEffects();
+            } else if (gameState === 'menu') {
+                // Draw animated background for menu
+                drawMenuBackground();
+            }
+        }
+        
+        function drawMenuBackground() {
+            // Animated starfield for menu
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                ctx.globalAlpha = 0.2 + Math.sin(Date.now() * 0.001 + star.x) * 0.3;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                star.y += star.speed * 0.008; // Slower movement for menu
+                if (star.y > canvas.height) {
+                    star.y = -5;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+            ctx.globalAlpha = 1;
+            
+            // Draw sample ships floating around
+            const time = Date.now() * 0.001;
+            for (let i = 0; i < 3; i++) {
+                const x = 100 + i * 200 + Math.sin(time + i) * 50;
+                const y = 150 + Math.cos(time * 0.7 + i) * 30;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.globalAlpha = 0.3;
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(-7, 10);
+                ctx.lineTo(0, 7);
+                ctx.lineTo(7, 10);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        
+        // Background starfield
+        const stars = [];
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2 + 0.5,
+                speed: Math.random() * 50 + 10
+            });
+        }
+        
+        function drawStarfield() {
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                ctx.globalAlpha = 0.3 + Math.random() * 0.7;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Move stars
+                star.y += star.speed * 0.016; // roughly 60fps
+                if (star.y > canvas.height) {
+                    star.y = -5;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+            ctx.globalAlpha = 1;
+        }
+        
+        function drawEffects() {
+            // Shield visualization when taking damage
+            if (player.currentShield > 0 && player.invulnerable) {
+                ctx.strokeStyle = '#4444ff';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.size/2 + 5, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+            
+            // Phase shield effect
+            if (player.shield.phaseChance && Math.random() < 0.1) {
+                ctx.fillStyle = '#8844ff';
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.size/2 + 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+            
+            // AOE explosion effects for plasma weapons
+            projectiles.forEach(proj => {
+                if (proj.aoeRadius > 0 && proj.owner === 'player') {
+                    ctx.strokeStyle = '#ff8800';
+                    ctx.lineWidth = 1;
+                    ctx.globalAlpha = 0.3;
+                    ctx.beginPath();
+                    ctx.arc(proj.x, proj.y, proj.aoeRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+            });
+        }
+        
+        // Initialize game
+        updateMenuTraits();
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
